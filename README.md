@@ -23,5 +23,46 @@ Object.defineProperty(obj, prop, descriptor)
 Observer类的作用就是给对象的属性添加getter和setter，用来依赖收集和派发更新。`observer`函数传入一个`value`（需要响应式化的对象）遍历所有的属性，执行`Object.defineProperty`处理。源码中Observer类的`walk`方法就是对数据进行遍历执行`defineReactive`方法来添加`getter`和`setter`;`observeArray`是将传进来的数组遍历，进行observe。
 > defineReactive方法中。数据的get方法执行时，如果存在当前的Watcher对象，对其进行依赖收集，并对其子对象进行依赖收集，如果是数组，则对数组进行依赖收集，如果数组的子成员还是数组，则对其遍历。执行set方法时，新的值需要observe，保证新的值是响应式的；并且dep对象会执行notify方法通知所有的Watcher观察者对象。
 
-
 #### <a name="dep">依赖收集</a>
+
+##### 1. 为什么要依赖收集？
+假如我们的数据`data`中有`text`,当`text`的值发生变化时，若视图中有用到`text`，那我们需要触发方法更新视图；若视图中并没有用到`text`，那就不需要触发更新视图的方法。而【依赖收集】会让`text`这个数据知道有哪些地方有依赖自己的数据，在自身发生变化的时候，需要通知他们进行更新。最终形成数据与视图的一种对应关系。
+
+##### 2. 依赖收集的实现
+依赖收集的过程：把Watcher实例存放到对应的Dep对象中去；
+依赖收集的前提：触发get方法，新建一个Watcher对象；；
+###### 1. 订阅者Dep
+订阅者`Dep`的作用，是用来存放`Watcher`观察者对象。
+```
+class Dep {
+  constructor () {
+    /* 用来存放Watcher对象的数组 */
+    this.subs = [];
+  }
+  /* 在subs中添加一个Watcher对象 */
+  addSub (sub) {
+    this.subs.push(sub);
+  }
+  /* 通知所有Watcher对象更新视图 */
+  notify () {
+    this.subs.forEach((sub) => {
+      sub.update();
+    })
+  }
+}
+```
+###### 2. 观察者Watcher
+```
+class Watcher {
+  constructor () {
+    /* 在new一个Watcher对象时将该对象赋值给Dep.target, 在get中会用到 */
+    Dep.target = this;
+  }
+  /* 更新视图方法 */
+  update() {
+    console.log('视图已更新)
+  }
+}
+```
+###### 3. 依赖收集
+使用`defineReactive`方法以及Vue的构造函数，完成依赖收集。在闭包中增加一个`Dep`类的对象，用来收集`Watcher`对象。在对象被【读】时，触发`reactiveGetter`函数将当前`Watcher`对象收集到`Dep`类中(通过存放在`Dep.target`);之后，当对象被【写】时，触发`reactiveSetter`方法通知`Dep`类调用`notify`方法通知所有`Watcher`对象调用`update`方法更新视图。在Vue的构造函数中，新建一个`Watcher`观察者对象，此时`Dep.target`便指向该对象。
