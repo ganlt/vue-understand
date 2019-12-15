@@ -66,3 +66,27 @@ class Watcher {
 ```
 ###### 3. 依赖收集
 使用`defineReactive`方法以及Vue的构造函数，完成依赖收集。在闭包中增加一个`Dep`类的对象，用来收集`Watcher`对象。在对象被【读】时，触发`reactiveGetter`函数将当前`Watcher`对象收集到`Dep`类中(通过存放在`Dep.target`);之后，当对象被【写】时，触发`reactiveSetter`方法通知`Dep`类调用`notify`方法通知所有`Watcher`对象调用`update`方法更新视图。在Vue的构造函数中，新建一个`Watcher`观察者对象，此时`Dep.target`便指向该对象。
+
+### Vue事件机制
+
+#### 1. Vue事件API
+Vue.js 为我们提供了四个事件API，分别是`$on`, `$once`, `$off`, `$emit`。
+#### 2. 初始化事件
+Vue.js 在初始化事件时，使用`initEvents`方法，在`vm`上创建一个`_events`对象，用来存放事件。
+```
+export function initEvents (vm: Component) {
+  /* 在vm上创建一个events对象，用来存放事件*/
+  vm._events = Object.create(null)
+  /* 这个标志位用来表示是否存在钩子，再不需要通过哈希表的方法来查找是否有钩子 ，减少不必要的花销，优化性能*/
+  vm._hasHookEvent = false
+  coonst listeners = vm.$options._parentListeners
+  if (listeners) {
+    updateComponentListeners(vm, listeners)
+  }
+}
+```
+在`Vue`原型上添加四个方法：
+1. `$on`方法，用来在`vm`实例上监听一个自定义事件，该事件可用`$emit`触发。
+2. `$once`方法，用来在`vm`实例上监听一个只能触发一次的事件，在出发之后会自动移除该事件。
+3. `$off`方法，用来移除自定义事件。
+4. `$emit`方法，用来触发指定的自定义事件。
